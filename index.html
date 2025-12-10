@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国版图制霸：地级区划版</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="container">
+        <h1>中国版图制霸：地级区划版 <span id="level-display">0</span></h1>
+        
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+        
+        <div id="level-menu">
+            <h3>选择等级</h3>
+            <div id="selected-region"></div>
+            <div class="level-option" data-level="0" style="background-color: white;">没去过</div>
+            <div class="level-option" data-level="1" style="background-color: CornflowerBlue;">途经/停留</div>
+            <div class="level-option" data-level="2" style="background-color: SpringGreen;">玩过（1-3天）</div>
+            <div class="level-option" data-level="3" style="background-color: Gold;">旅居（3-30天）</div>
+            <div class="level-option" data-level="4" style="background-color: IndianRed;">居住（30天以上）</div>
+        </div>
+        
+        <div id="controls">
+            <div id="legend">
+                <div class="legend-item" data-level="4">
+                    <div class="legend-color" style="background-color: IndianRed;"></div>
+                    <span>居住（30天以上）（4分）</span>
+                </div>
+                <div class="legend-item" data-level="3">
+                    <div class="legend-color" style="background-color: Gold;"></div>
+                    <span>旅居（3-30天）（3分）</span>
+                </div>
+                <div class="legend-item" data-level="2">
+                    <div class="legend-color" style="background-color: SpringGreen;"></div>
+                    <span>玩过（1-3天）（2分）</span>
+                </div>
+                <div class="legend-item" data-level="1">
+                    <div class="legend-color" style="background-color: CornflowerBlue;"></div>
+                    <span>途经/停留（1分）</span>
+                </div>
+                <div class="legend-item" data-level="0">
+                    <div class="legend-color" style="background-color: White;"></div>
+                    <span>没去过（0分）</span>
+                </div>
+            </div>
+            
+            <div id="actions">
+                <button id="back-btn">返回全国</button>
+                <button id="share-btn">分享</button>
+                <button id="save-btn">保存图片</button>
+            </div>
+        </div>
+        
+        <footer>
+            <div>
+                其它地区：
+                <a href="https://miklcct.github.io/zhixian-dengji-zhongguo-ban/" target="_blank" rel="noopener">中国（省级区划版）</a>
+                <a href="https://travel.tonypai.com.tw/">台湾</a>
+                <a href="https://zhung.com.tw/japanex/">日本</a>
+            </div>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
