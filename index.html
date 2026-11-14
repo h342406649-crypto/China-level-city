@@ -72,9 +72,16 @@
                         <div class="legend-item"><span class="legend-color level-0"></span><span>没去过 <small>0分</small></span></div>
                     </div>
                 </div>
-                <div id="actions">
-                    <button id="share-btn" class="button button-secondary" type="button">分享地图</button>
-                    <button id="save-btn" class="button button-primary" type="button">保存图片</button>
+                <div class="actions-block">
+                    <div id="actions">
+                        <button id="clear-btn" class="button button-clear" type="button" disabled>清空全部</button>
+                        <button id="share-btn" class="button button-secondary" type="button">分享地图</button>
+                        <button id="save-btn" class="button button-primary" type="button">保存图片</button>
+                    </div>
+                    <div id="clear-feedback" class="clear-feedback" role="status" aria-live="polite" hidden>
+                        <span id="clear-message"></span>
+                        <button id="undo-clear-btn" type="button">撤销</button>
+                    </div>
                 </div>
             </div>
         </main>
