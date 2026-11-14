@@ -1,76 +1,115 @@
 <!DOCTYPE html>
-<html lang="zh">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#eef6fb">
+    <meta name="description" content="点亮走过的城市，记录你的中国旅行足迹。">
     <title>中国版图制霸：地级区划版</title>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <link rel="stylesheet" href="style.css">
+    <script defer src="vendor/echarts.min.js"></script>
+    <script defer src="script.js"></script>
 </head>
 <body>
     <div id="container">
-        <h1>中国版图制霸：地级区划版 <span id="level-display">0</span></h1>
-        
-        <div id="map-container">
-            <div id="map"></div>
-        </div>
-        
-        <div id="level-menu">
-            <h3>选择等级</h3>
-            <div id="selected-region"></div>
-            <div class="level-option" data-level="0" style="background-color: white;">没去过</div>
-            <div class="level-option" data-level="1" style="background-color: CornflowerBlue;">途经/停留</div>
-            <div class="level-option" data-level="2" style="background-color: SpringGreen;">玩过（1-3天）</div>
-            <div class="level-option" data-level="3" style="background-color: Gold;">旅居（3-30天）</div>
-            <div class="level-option" data-level="4" style="background-color: IndianRed;">居住（30天以上）</div>
-        </div>
-        
-        <div id="controls">
-            <div id="legend">
-                <div class="legend-item" data-level="4">
-                    <div class="legend-color" style="background-color: IndianRed;"></div>
-                    <span>居住（30天以上）（4分）</span>
+        <header class="site-header">
+            <div class="brand-mark" aria-hidden="true">行</div>
+            <div class="heading-copy">
+                <p class="eyebrow">记录每一次出发</p>
+                <h1>中国版图制霸 <span>地级区划版</span></h1>
+                <p class="intro">点亮走过的城市，收藏属于你的旅行足迹。</p>
+            </div>
+            <div class="score-card" aria-live="polite" aria-atomic="true">
+                <span id="score-label">全国总分</span>
+                <div><strong id="level-display">0</strong><span class="score-unit">分</span></div>
+            </div>
+        </header>
+
+        <main class="main-card">
+            <div class="map-toolbar">
+                <div class="map-heading">
+                    <p class="section-label">你的足迹地图</p>
+                    <h2 id="map-heading">全国地图</h2>
+                    <p id="map-instructions">点击省份，或按名称选择地区</p>
                 </div>
-                <div class="legend-item" data-level="3">
-                    <div class="legend-color" style="background-color: Gold;"></div>
-                    <span>旅居（3-30天）（3分）</span>
-                </div>
-                <div class="legend-item" data-level="2">
-                    <div class="legend-color" style="background-color: SpringGreen;"></div>
-                    <span>玩过（1-3天）（2分）</span>
-                </div>
-                <div class="legend-item" data-level="1">
-                    <div class="legend-color" style="background-color: CornflowerBlue;"></div>
-                    <span>途经/停留（1分）</span>
-                </div>
-                <div class="legend-item" data-level="0">
-                    <div class="legend-color" style="background-color: White;"></div>
-                    <span>没去过（0分）</span>
+                <div class="map-controls">
+                    <button id="back-btn" class="button button-back" type="button" hidden>← 返回全国</button>
+                    <label class="region-picker">
+                        <span class="sr-only" id="region-select-label">按名称选择地区</span>
+                        <select id="region-select" aria-labelledby="region-select-label" disabled>
+                            <option value="">地图加载中…</option>
+                        </select>
+                    </label>
                 </div>
             </div>
-            
-            <div id="actions">
-                <button id="back-btn">返回全国</button>
-                <button id="share-btn">分享</button>
-                <button id="save-btn">保存图片</button>
+
+            <div id="map-container">
+                <div id="map" role="img" aria-label="旅行足迹地图。也可以使用上方的地区选择菜单操作。"></div>
+                <div id="map-status" class="map-status" role="status" aria-live="polite">
+                    <span class="loading-indicator" aria-hidden="true"></span>
+                    <p id="map-status-text">正在加载地图…</p>
+                    <button id="retry-btn" class="button button-secondary" type="button" hidden>重新加载</button>
+                </div>
+                <div class="map-tools" role="group" aria-label="地图缩放控制">
+                    <button id="zoom-in-btn" type="button" aria-label="放大地图" title="放大地图">+</button>
+                    <button id="zoom-out-btn" type="button" aria-label="缩小地图" title="缩小地图">−</button>
+                    <button id="reset-map-btn" type="button" aria-label="重置地图视图" title="重置地图视图">↺</button>
+                </div>
+                <p class="map-hint" aria-hidden="true"><span class="mouse-hint">拖动地图 · 点按按钮缩放</span><span class="touch-hint">双指移动 · 双指或按钮缩放</span></p>
             </div>
-        </div>
-        
+
+            <div class="map-bottom">
+                <div class="legend-block">
+                    <div class="legend-heading">
+                        <h2>足迹等级</h2>
+                        <span>点击地区后选择</span>
+                    </div>
+                    <div id="legend" aria-label="足迹等级说明">
+                        <div class="legend-item"><span class="legend-color level-4"></span><span>居住 <small>30天以上 · 4分</small></span></div>
+                        <div class="legend-item"><span class="legend-color level-3"></span><span>旅居 <small>3–30天 · 3分</small></span></div>
+                        <div class="legend-item"><span class="legend-color level-2"></span><span>玩过 <small>1–3天 · 2分</small></span></div>
+                        <div class="legend-item"><span class="legend-color level-1"></span><span>途经/停留 <small>1分</small></span></div>
+                        <div class="legend-item"><span class="legend-color level-0"></span><span>没去过 <small>0分</small></span></div>
+                    </div>
+                </div>
+                <div id="actions">
+                    <button id="share-btn" class="button button-secondary" type="button">分享地图</button>
+                    <button id="save-btn" class="button button-primary" type="button">保存图片</button>
+                </div>
+            </div>
+        </main>
+
         <footer>
-            <div>
-                其它地区：
-                <a href="https://miklcct.github.io/zhixian-dengji-zhongguo-ban/" target="_blank" rel="noopener">中国（省级区划版）</a>
-                <a href="https://travel.tonypai.com.tw/">台湾</a>
-                <a href="https://zhung.com.tw/japanex/">日本</a>
+            <div class="footer-links">
+                <span>探索更多</span>
+                <a href="https://miklcct.github.io/zhixian-dengji-zhongguo-ban/" target="_blank" rel="noopener noreferrer">中国（省级版）</a>
+                <a href="https://travel.tonypai.com.tw/" target="_blank" rel="noopener noreferrer">台湾</a>
+                <a href="https://zhung.com.tw/japanex/" target="_blank" rel="noopener noreferrer">日本</a>
             </div>
-            <div id="copyright">
-                中国版图制霸：地级区划版©翡翠小竹，属自由及开放源码软件。源码可於
-                <a href="https://github.com/h342406649-crypto/China-level-city" target="_blank" rel="noopener">GitHub</a>
-                取得。
-            </div>
+            <p id="copyright">中国版图制霸：地级区划版 © 翡翠小竹 · 自由及开放源码软件 · <a href="https://github.com/h342406649-crypto/China-level-city" target="_blank" rel="noopener noreferrer">GitHub</a></p>
         </footer>
     </div>
 
-    <script src="script.js"></script>
+    <div id="level-overlay" class="level-overlay" hidden>
+        <section id="level-menu" class="level-menu" role="dialog" aria-modal="true" aria-labelledby="level-title" aria-describedby="selected-region" tabindex="-1">
+            <div class="sheet-handle" aria-hidden="true"></div>
+            <div class="level-menu-heading">
+                <div>
+                    <p class="section-label">记录你的足迹</p>
+                    <h2 id="level-title">选择足迹等级</h2>
+                    <p id="selected-region"></p>
+                </div>
+                <button id="close-menu-btn" class="close-button" type="button" aria-label="关闭">×</button>
+            </div>
+            <div class="level-options">
+                <button class="level-option" type="button" data-level="0" aria-pressed="false"><span class="option-color level-0"></span><span class="option-copy"><strong>没去过</strong><small>还没有去过这里</small></span><span class="option-score">0 分</span></button>
+                <button class="level-option" type="button" data-level="1" aria-pressed="false"><span class="option-color level-1"></span><span class="option-copy"><strong>途经 / 停留</strong><small>在这里留下过短暂足迹</small></span><span class="option-score">1 分</span></button>
+                <button class="level-option" type="button" data-level="2" aria-pressed="false"><span class="option-color level-2"></span><span class="option-copy"><strong>玩过</strong><small>停留 1–3 天</small></span><span class="option-score">2 分</span></button>
+                <button class="level-option" type="button" data-level="3" aria-pressed="false"><span class="option-color level-3"></span><span class="option-copy"><strong>旅居</strong><small>停留 3–30 天</small></span><span class="option-score">3 分</span></button>
+                <button class="level-option" type="button" data-level="4" aria-pressed="false"><span class="option-color level-4"></span><span class="option-copy"><strong>居住</strong><small>停留 30 天以上</small></span><span class="option-score">4 分</span></button>
+            </div>
+        </section>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 </body>
 </html>
