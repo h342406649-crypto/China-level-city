@@ -1,548 +1,490 @@
-// 应用状态
+const STORAGE_KEY = 'china-level-city-records-v1';
+const COLORS = ['#ffffff', '#6495ed', '#00e49a', '#ffd700', '#cd5c5c'];
+const LEVEL_NAMES = ['没去过', '途经/停留', '玩过（1–3天）', '旅居（3–30天）', '居住（30天以上）'];
+const DIRECT_REGIONS = new Set(['北京', '天津', '上海', '重庆', '香港', '澳门']);
+
+const provinceCodeMap = {
+    北京: '110000', 天津: '120000', 河北: '130000', 山西: '140000', 内蒙古: '150000',
+    辽宁: '210000', 吉林: '220000', 黑龙江: '230000', 上海: '310000', 江苏: '320000',
+    浙江: '330000', 安徽: '340000', 福建: '350000', 江西: '360000', 山东: '370000',
+    河南: '410000', 湖北: '420000', 湖南: '430000', 广东: '440000', 广西: '450000',
+    海南: '460000', 重庆: '500000', 四川: '510000', 贵州: '520000', 云南: '530000',
+    西藏: '540000', 陕西: '610000', 甘肃: '620000', 青海: '630000', 宁夏: '640000',
+    新疆: '650000', 台湾: '710000', 香港: '810000', 澳门: '820000'
+};
+
+const provinceFullNames = {
+    北京: '北京市', 天津: '天津市', 河北: '河北省', 山西: '山西省', 内蒙古: '内蒙古自治区',
+    辽宁: '辽宁省', 吉林: '吉林省', 黑龙江: '黑龙江省', 上海: '上海市', 江苏: '江苏省',
+    浙江: '浙江省', 安徽: '安徽省', 福建: '福建省', 江西: '江西省', 山东: '山东省',
+    河南: '河南省', 湖北: '湖北省', 湖南: '湖南省', 广东: '广东省', 广西: '广西壮族自治区',
+    海南: '海南省', 重庆: '重庆市', 四川: '四川省', 贵州: '贵州省', 云南: '云南省',
+    西藏: '西藏自治区', 陕西: '陕西省', 甘肃: '甘肃省', 青海: '青海省', 宁夏: '宁夏回族自治区',
+    新疆: '新疆维吾尔自治区', 台湾: '台湾省', 香港: '香港特别行政区', 澳门: '澳门特别行政区'
+};
+
+const provinceShortNames = Object.fromEntries(
+    Object.entries(provinceFullNames).map(([shortName, fullName]) => [fullName, shortName])
+);
+const mapCache = new Map();
 const appState = {
     currentLevel: 'china',
-    currentProvince: null,
-    data: {},
-    colors: ['White', 'CornflowerBlue', 'SpringGreen', 'Gold', 'IndianRed'],
-    levelNames: ['没去过', '途经/停留', '玩过（1-3天）', '旅居（3-30天）', '居住（30天以上）'],
-    currentSelectedRegion: null
-};
-const HOVER_COLOR = '#ffd6e8';
-
-// 省份中心坐标
-const provinceCenters = {
-    '北京市': [116.4, 40],
-    '天津市': [117.2, 39.1],
-    '河北省': [114.5, 38],
-    '山西省': [112.5, 37.5],
-    '内蒙古自治区': [110, 42],
-    '辽宁省': [123.4, 41.8],
-    '吉林省': [125.3, 43.9],
-    '黑龙江省': [128, 47],
-    '上海市': [121.5, 31.2],
-    '江苏省': [119.5, 32],
-    '浙江省': [120.2, 30.3],
-    '安徽省': [117.3, 31.8],
-    '福建省': [118.1, 26.1],
-    '江西省': [115.9, 28.7],
-    '山东省': [118.1, 36.7],
-    '河南省': [113.7, 34.8],
-    '湖北省': [112.3, 30.6],
-    '湖南省': [112.9, 28.2],
-    '广东省': [113.3, 23.1],
-    '广西壮族自治区': [108.3, 22.8],
-    '海南省': [110.3, 20],
-    '重庆市': [106.5, 29.6],
-    '四川省': [102.7, 30.6],
-    '贵州省': [106.7, 26.6],
-    '云南省': [102.7, 25.1],
-    '西藏自治区': [88.9, 29.6],
-    '陕西省': [108.9, 34.3],
-    '甘肃省': [103.7, 36.1],
-    '青海省': [96, 35.6],
-    '宁夏回族自治区': [106.3, 38.5],
-    '新疆维吾尔自治区': [87.6, 43.8],
-    '香港特别行政区': [114.2, 22.3],
-    '澳门特别行政区': [113.5, 22.2],
-    '台湾省': [121, 23.5]
-};
-
-// 省份代码映射 - 修复台湾省映射
-const provinceCodeMap = {
-    "北京": "110000",
-    "天津": "120000",
-    "河北": "130000",
-    "山西": "140000",
-    "内蒙古": "150000",
-    "辽宁": "210000",
-    "吉林": "220000",
-    "黑龙江": "230000",
-    "上海": "310000",
-    "江苏": "320000",
-    "浙江": "330000",
-    "安徽": "340000",
-    "福建": "350000",
-    "江西": "360000",
-    "山东": "370000",
-    "河南": "410000",
-    "湖北": "420000",
-    "湖南": "430000",
-    "广东": "440000",
-    "广西": "450000",
-    "海南": "460000",
-    "重庆": "500000",
-    "四川": "510000",
-    "贵州": "520000",
-    "云南": "530000",
-    "西藏": "540000",
-    "陕西": "610000",
-    "甘肃": "620000",
-    "青海": "630000",
-    "宁夏": "640000",
-    "新疆": "650000",
-    "香港": "810000",
-    "澳门": "820000",
-    "台湾": "710000",
-    "台湾省": "710000"  // 添加台湾省的映射
-};
-
-// 省份全称映射
-const provinceFullNames = {
-    '北京': '北京市',
-    '天津': '天津市',
-    '河北': '河北省',
-    '山西': '山西省',
-    '内蒙古': '内蒙古自治区',
-    '辽宁': '辽宁省',
-    '吉林': '吉林省',
-    '黑龙江': '黑龙江省',
-    '上海': '上海市',
-    '江苏': '江苏省',
-    '浙江': '浙江省',
-    '安徽': '安徽省',
-    '福建': '福建省',
-    '江西': '江西省',
-    '山东': '山东省',
-    '河南': '河南省',
-    '湖北': '湖北省',
-    '湖南': '湖南省',
-    '广东': '广东省',
-    '广西': '广西壮族自治区',
-    '海南': '海南省',
-    '重庆': '重庆市',
-    '四川': '四川省',
-    '贵州': '贵州省',
-    '云南': '云南省',
-    '西藏': '西藏自治区',
-    '陕西': '陕西省',
-    '甘肃': '甘肃省',
-    '青海': '青海省',
-    '宁夏': '宁夏回族自治区',
-    '新疆': '新疆维吾尔自治区',
-    '香港': '香港特别行政区',
-    '澳门': '澳门特别行政区',
-    '台湾': '台湾省',
-    '台湾省': '台湾省'  // 添加台湾省的映射
-};
-
-// 标签偏移配置
-const labelOffsets = {
-    '北京市': { dx: -10, dy: -10 },
-    '天津市': { dx: 18, dy: -6 },
-    '河北省': { dx: 0, dy: 12 },
-    '广东省': { dx: -12, dy: 0 },
-    '香港特别行政区': { dx: 14, dy: 12 },
-    '澳门特别行政区': { dx: 14, dy: -10 }
+    currentSelectedRegion: null,
+    data: loadRecords()
 };
 
 let chart = null;
-let clickOutsideHandler = null; // 用于存储点击外部的事件处理器
+let mapRequest = 0;
+let previousFocus = null;
+let toastTimer = null;
+let resizeFrame = null;
+let ignoreMapClickUntil = 0;
 
-// 计算省份最高等级
-function getProvinceMaxLevel(provinceName) {
-    const cities = appState.data[provinceName] || {};
-    let maxLevel = 0;
-    Object.values(cities).forEach(lvl => {
-        if (lvl > maxLevel) maxLevel = lvl;
-    });
-    return maxLevel;
+function loadRecords() {
+    const records = Object.create(null);
+    try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+        if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return records;
+
+        for (const [province, cities] of Object.entries(saved)) {
+            if (!Object.prototype.hasOwnProperty.call(provinceCodeMap, province) ||
+                !cities || typeof cities !== 'object' || Array.isArray(cities)) continue;
+
+            const validCities = Object.create(null);
+            for (const [city, level] of Object.entries(cities)) {
+                if (city && Number.isInteger(level) && level >= 1 && level <= 4) {
+                    validCities[city] = level;
+                }
+            }
+            if (Object.keys(validCities).length) records[province] = validCities;
+        }
+    } catch (error) {
+        console.warn('读取本地足迹记录失败:', error);
+    }
+    return records;
 }
 
-// 计算省份总分
-function getProvinceTotal(provinceName) {
-    const cities = appState.data[provinceName] || {};
-    return Object.values(cities).reduce((sum, lvl) => sum + (lvl || 0), 0);
+function saveRecords() {
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.data));
+    } catch (error) {
+        console.warn('保存本地足迹记录失败:', error);
+        showToast('无法保存到浏览器，刷新页面后记录可能丢失。');
+    }
 }
 
-// 获取等级对应颜色
-function getColor(level) {
-    return appState.colors[level] || appState.colors[0];
+function getProvinceMaxLevel(province) {
+    return Math.max(0, ...Object.values(appState.data[province] || {}));
 }
 
-// 创建视觉映射配置
-function createVisualMap() {
+function getProvinceTotal(province) {
+    return Object.values(appState.data[province] || {}).reduce((sum, level) => sum + level, 0);
+}
+
+function updateLevelDisplay() {
+    const isChina = appState.currentLevel === 'china';
+    const total = isChina
+        ? Object.keys(appState.data).reduce((sum, province) => sum + getProvinceTotal(province), 0)
+        : getProvinceTotal(appState.currentLevel);
+    document.getElementById('score-label').textContent = isChina ? '全国总分' : `${appState.currentLevel}总分`;
+    document.getElementById('level-display').textContent = total;
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, 3500);
+}
+
+function showMapStatus(message, isError = false) {
+    const status = document.getElementById('map-status');
+    document.getElementById('map-status-text').textContent = message;
+    status.querySelector('.loading-indicator').hidden = isError;
+    document.getElementById('retry-btn').hidden = !isError;
+    status.hidden = false;
+}
+
+function hideMapStatus() {
+    document.getElementById('map-status').hidden = true;
+}
+
+async function fetchMap(url) {
+    if (mapCache.has(url)) return mapCache.get(url);
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const geoJSON = await response.json();
+    if (!Array.isArray(geoJSON.features)) throw new Error('无效的地图数据');
+    mapCache.set(url, geoJSON);
+    return geoJSON;
+}
+
+function populateRegionSelect(geoJSON, isChina) {
+    const select = document.getElementById('region-select');
+    const placeholder = isChina ? '按名称选择省份或地区' : '按名称选择城市';
+    select.replaceChildren(new Option(placeholder, ''));
+
+    const names = new Set();
+    for (const feature of geoJSON.features) {
+        const fullName = feature.properties && feature.properties.name;
+        const name = isChina ? provinceShortNames[fullName] : fullName;
+        if (!name || names.has(name)) continue;
+        names.add(name);
+        select.add(new Option(name, name));
+    }
+    select.disabled = false;
+    document.getElementById('region-select-label').textContent = placeholder;
+}
+
+function mapData() {
+    if (appState.currentLevel === 'china') {
+        return Object.keys(appState.data).map(name => ({ name, value: getProvinceMaxLevel(name) }));
+    }
+    return Object.entries(appState.data[appState.currentLevel] || {}).map(([name, value]) => ({ name, value }));
+}
+
+function isCompact() {
+    return window.matchMedia('(max-width: 600px)').matches;
+}
+
+function createMapOption(mapName, title, isChina) {
     return {
-        show: false,
-        type: 'piecewise',
-        pieces: [
-            {min: 4, label: '居住（30天以上）', color: appState.colors[4]},
-            {min: 3, max: 3.9, label: '旅居（3-30天）', color: appState.colors[3]},
-            {min: 2, max: 2.9, label: '玩过（1-3天）', color: appState.colors[2]},
-            {min: 1, max: 1.9, label: '途经/停留', color: appState.colors[1]},
-            {min: 0, max: 0.9, label: '没去过', color: appState.colors[0]}
-        ],
-        left: 'left',
-        top: 'bottom',
-        textStyle: { color: '#000' }
-    };
-}
-
-// 加载中国地图 - 修改为从本地map文件夹读取
-function loadChinaMap() {
-    fetch('./map/china_full.json')
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.json();
-        })
-        .then(geoJSON => {
-            echarts.registerMap('china', geoJSON);
-            initChinaMap();
-        })
-        .catch(error => {
-            console.error('加载中国地图失败:', error);
-            alert('加载中国地图失败，请检查map文件夹中是否有china_full.json文件');
-        });
-}
-
-// 初始化中国地图
-function initChinaMap() {
-    if (!chart) chart = echarts.init(document.getElementById('map'));
-
-    const option = {
+        animation: false,
         title: {
-            text: '中国地图 - 点击省份查看市级地图',
+            text: title,
             left: 'center',
-            textStyle: { fontSize: 18 }
+            top: 13,
+            textStyle: { color: '#526f7e', fontSize: isCompact() ? 13 : 15, fontWeight: 500 }
         },
         tooltip: {
             trigger: 'item',
-            formatter: function(params) {
-                const level = getProvinceMaxLevel(params.name);
-                return `${params.name}<br/>${appState.levelNames[level]}<br/><small>点击查看市级地图或选择等级</small>`;
+            formatter(params) {
+                const level = isChina
+                    ? getProvinceMaxLevel(params.name)
+                    : (appState.data[appState.currentLevel]?.[params.name] || 0);
+                return `${params.name}<br/>${LEVEL_NAMES[level]}`;
             }
         },
-        visualMap: createVisualMap(),
+        visualMap: {
+            show: false,
+            type: 'piecewise',
+            pieces: COLORS.map((color, value) => ({ value, color }))
+        },
         series: [{
-            name: '中国',
+            name: mapName,
             type: 'map',
-            map: 'china',
-            roam: true,
+            map: mapName,
+            nameMap: isChina ? provinceShortNames : undefined,
+            roam: window.matchMedia('(pointer: coarse)').matches ? 'scale' : true,
+            scaleLimit: { min: 1, max: 8 },
             selectedMode: false,
-            select: { disabled: true },
-            center: null,
-            zoom: 1.2,
-            label: { show: true },
-            labelLayout: function(params) {
-                const offset = labelOffsets[params.name] || {};
-                return { hideOverlap: true, ...offset };
-            },
-            emphasis: {
-                label: { show: true },
-                itemStyle: { areaColor: HOVER_COLOR }
-            },
-            data: Object.keys(appState.data).map(name => {
-                const level = getProvinceMaxLevel(name);
-                const color = getColor(level);
-                return { name, value: level, itemStyle: { areaColor: color, color } };
-            }),
-            nameMap: {
-                '北京市': '北京', '天津市': '天津', '上海市': '上海', '重庆市': '重庆',
-                '河北省': '河北', '山西省': '山西', '内蒙古自治区': '内蒙古', '辽宁省': '辽宁',
-                '吉林省': '吉林', '黑龙江省': '黑龙江', '江苏省': '江苏', '浙江省': '浙江',
-                '安徽省': '安徽', '福建省': '福建', '江西省': '江西', '山东省': '山东',
-                '河南省': '河南', '湖北省': '湖北', '湖南省': '湖南', '广东省': '广东',
-                '广西壮族自治区': '广西', '海南省': '海南', '四川省': '四川', '贵州省': '贵州',
-                '云南省': '云南', '新疆维吾尔自治区': '新疆', '西藏自治区': '西藏', '陕西省': '陕西',
-                '甘肃省': '甘肃', '青海省': '青海', '宁夏回族自治区': '宁夏', '香港特别行政区': '香港',
-                '澳门特别行政区': '澳门', '台湾省': '台湾'  // 修正台湾省显示为"台湾"
-            }
+            layoutCenter: ['50%', '52%'],
+            layoutSize: '95%',
+            zoom: 1,
+            itemStyle: { areaColor: COLORS[0], borderColor: '#a9bdc4', borderWidth: 0.8 },
+            label: { show: true, color: '#435d6a', fontSize: isCompact() ? 9 : 11 },
+            labelLayout: { hideOverlap: true },
+            emphasis: { label: { show: true }, itemStyle: { areaColor: '#ffd6e8' } },
+            data: mapData()
         }]
     };
-    
-    chart.setOption(option, true);
-    updateLevelDisplay();
-    
-    chart.off('click');
-    chart.on('click', handleMapClick);
 }
 
-// 处理地图点击事件
-function handleMapClick(params) {
-    if (params.componentType !== 'series' || params.seriesType !== 'map') return;
-    
-    const regionName = params.name;
-    
+async function loadChinaMap() {
+    const request = ++mapRequest;
+    showMapStatus('正在加载全国地图…');
+    document.getElementById('region-select').disabled = true;
+    try {
+        const geoJSON = await fetchMap('./map/china_full.json');
+        if (request !== mapRequest) return;
+        echarts.registerMap('china', geoJSON);
+        showChinaMap(geoJSON);
+        hideMapStatus();
+    } catch (error) {
+        if (request !== mapRequest) return;
+        console.error('加载全国地图失败:', error);
+        const message = location.protocol === 'file:'
+            ? '直接打开本地文件会阻止地图加载，请通过本地网页服务器打开本页面。'
+            : '地图加载失败，请检查网络或地图文件后重试。';
+        showMapStatus(message, true);
+    }
+}
+
+function showChinaMap(geoJSON) {
+    appState.currentLevel = 'china';
+    hideLevelMenu();
+    chart.setOption(createMapOption('china', '全国足迹地图', true), true);
+    document.getElementById('map-heading').textContent = '全国地图';
+    document.getElementById('map-instructions').textContent = '点击省份，或按名称选择地区';
+    document.getElementById('back-btn').hidden = true;
+    populateRegionSelect(geoJSON, true);
+    updateLevelDisplay();
+}
+
+async function loadProvinceMap(shortName) {
+    const code = provinceCodeMap[shortName];
+    if (!code) return;
+    const request = ++mapRequest;
+    const select = document.getElementById('region-select');
+    select.disabled = true;
+    showMapStatus(`正在加载${shortName}地图…`);
+
+    try {
+        const geoJSON = await fetchMap(`./map/${code}_full.json`);
+        if (request !== mapRequest) return;
+        const fullName = provinceFullNames[shortName];
+        echarts.registerMap(fullName, geoJSON);
+        appState.currentLevel = shortName;
+        chart.setOption(createMapOption(fullName, `${fullName}足迹地图`, false), true);
+        document.getElementById('map-heading').textContent = fullName;
+        document.getElementById('map-instructions').textContent = '点击城市，或按名称选择城市';
+        document.getElementById('back-btn').hidden = false;
+        populateRegionSelect(geoJSON, false);
+        updateLevelDisplay();
+        hideMapStatus();
+    } catch (error) {
+        if (request !== mapRequest) return;
+        console.error('加载省级地图失败:', error);
+        select.disabled = false;
+        hideMapStatus();
+        showToast(`${shortName}地图加载失败，请稍后重试。`);
+    }
+}
+
+function selectRegion(name) {
+    if (!name) return;
     if (appState.currentLevel === 'china') {
-        const municipalCities = ['北京', '天津', '上海', '重庆'];
-        const specialRegions = ['香港', '澳门'];
-        const nodrillRegions = [...municipalCities, ...specialRegions];
-        
-        if (nodrillRegions.includes(regionName)) {
-            showLevelMenu(regionName, regionName);
-        } else {
-            // 处理台湾省点击 - 统一使用"台湾"作为参数
-            const provinceName = regionName === '台湾' ? '台湾省' : regionName;
-            loadProvinceMap(provinceName);
+        if (DIRECT_REGIONS.has(name)) showLevelMenu(name, name);
+        else loadProvinceMap(name);
+    } else {
+        showLevelMenu(name, appState.currentLevel);
+    }
+}
+
+function showLevelMenu(regionName, province) {
+    appState.currentSelectedRegion = { name: regionName, province };
+    previousFocus = document.activeElement;
+    document.getElementById('selected-region').textContent = `当前地区：${regionName}`;
+    const currentLevel = appState.data[province]?.[regionName] || 0;
+    document.querySelectorAll('.level-option').forEach(option => {
+        option.setAttribute('aria-pressed', String(Number(option.dataset.level) === currentLevel));
+    });
+    document.getElementById('level-overlay').hidden = false;
+    document.body.classList.add('modal-open');
+    document.getElementById('level-menu').focus();
+}
+
+function hideLevelMenu() {
+    const overlay = document.getElementById('level-overlay');
+    if (overlay.hidden) return;
+    overlay.hidden = true;
+    document.body.classList.remove('modal-open');
+    appState.currentSelectedRegion = null;
+    if (previousFocus && previousFocus !== document.body && previousFocus.isConnected) {
+        previousFocus.focus({ preventScroll: true });
+    }
+    previousFocus = null;
+}
+
+function updateRegionLevel(level) {
+    if (!appState.currentSelectedRegion || !Number.isInteger(level) || level < 0 || level > 4) return;
+    const { name, province } = appState.currentSelectedRegion;
+    if (level === 0) {
+        if (appState.data[province]) {
+            delete appState.data[province][name];
+            if (!Object.keys(appState.data[province]).length) delete appState.data[province];
         }
     } else {
-        showLevelMenu(regionName, appState.currentLevel);
+        if (!appState.data[province]) appState.data[province] = Object.create(null);
+        appState.data[province][name] = level;
     }
-}
-
-// 显示等级选择菜单
-function showLevelMenu(regionName, regionType) {
-    appState.currentSelectedRegion = { name: regionName, type: regionType };
-    
-    const menu = document.getElementById('level-menu');
-    const selectedRegion = document.getElementById('selected-region');
-    
-    selectedRegion.textContent = `当前选择: ${regionName}`;
-    menu.style.display = 'block';
-    
-    // 添加点击外部关闭菜单的事件监听
-    setupClickOutsideHandler(menu);
-    
-    document.querySelectorAll('.level-option').forEach(option => {
-        option.onclick = function() {
-            const level = parseInt(this.getAttribute('data-level'));
-            updateRegionLevel(level);
-            // 选择等级后移除点击外部的事件监听
-            removeClickOutsideHandler();
-        };
-    });
-}
-
-// 设置点击外部关闭菜单的事件监听
-function setupClickOutsideHandler(menuElement) {
-    // 移除之前的事件监听（如果有）
-    removeClickOutsideHandler();
-    
-    // 创建新的事件处理器
-    clickOutsideHandler = function(event) {
-        // 如果点击的不是菜单本身或其子元素
-        if (!menuElement.contains(event.target)) {
-            hideLevelMenu();
-        }
-    };
-    
-    // 添加事件监听（使用捕获阶段确保在其他点击事件之前处理）
-    document.addEventListener('click', clickOutsideHandler, true);
-}
-
-// 移除点击外部的事件监听
-function removeClickOutsideHandler() {
-    if (clickOutsideHandler) {
-        document.removeEventListener('click', clickOutsideHandler, true);
-        clickOutsideHandler = null;
-    }
-}
-
-// 隐藏等级选择菜单
-function hideLevelMenu() {
-    const menu = document.getElementById('level-menu');
-    menu.style.display = 'none';
-    
-    // 移除点击外部的事件监听
-    removeClickOutsideHandler();
-}
-
-// 更新区域等级
-function updateRegionLevel(level) {
-    if (!appState.currentSelectedRegion) return;
-    
-    const { name, type } = appState.currentSelectedRegion;
-    
-    if (!appState.data[type]) appState.data[type] = {};
-    appState.data[type][name] = level;
-    
-    updateMapColor();
+    chart.setOption({ series: [{ data: mapData() }] });
+    updateLevelDisplay();
     hideLevelMenu();
-    updateLevelDisplay();
+    saveRecords();
 }
 
-// 更新地图颜色
-function updateMapColor() {
-    if (!chart) return;
-    
-    const currentLevel = appState.currentLevel;
-    
-    if (currentLevel === 'china') {
-        const provinceData = Object.keys(appState.data).map(name => {
-            const level = getProvinceMaxLevel(name);
-            const color = getColor(level);
-            return { name, value: level, itemStyle: { areaColor: color, color } };
-        });
-        
-        chart.setOption({ series: [{ data: provinceData }] });
-        updateLevelDisplay();
-        return;
+function imageDataURL() {
+    if (!chart || !document.getElementById('map-status').hidden) {
+        showToast('地图尚未加载完成，请稍后再试。');
+        return null;
     }
-    
-    const regionData = appState.data[currentLevel] || {};
-    const cityData = Object.keys(regionData).map(name => {
-        const level = regionData[name] ?? 0;
-        const color = getColor(level);
-        return { name, value: level, itemStyle: { areaColor: color, color } };
+    return chart.getDataURL({ type: 'png', pixelRatio: 2, backgroundColor: '#ffffff' });
+}
+
+function changeMapZoom(factor) {
+    if (!chart || !document.getElementById('map-status').hidden) return;
+    chart.dispatchAction({
+        type: 'geoRoam',
+        seriesIndex: 0,
+        zoom: factor,
+        originX: chart.getWidth() / 2,
+        originY: chart.getHeight() / 2
     });
-    
-    chart.setOption({ series: [{ data: cityData }] });
-    updateLevelDisplay();
 }
 
-// 更新等级显示
-function updateLevelDisplay() {
-    const display = document.getElementById('level-display');
-    
-    if (appState.currentLevel === 'china') {
-        const nationalTotal = Object.keys(appState.data).reduce(
-            (sum, name) => sum + getProvinceTotal(name), 0
-        );
-        display.textContent = `全国总分：${nationalTotal}`;
-        return;
-    }
-    
-    const provinceTotal = getProvinceTotal(appState.currentLevel);
-    display.textContent = `${appState.currentLevel}总分：${provinceTotal}`;
+function resetMapView() {
+    if (!chart || !document.getElementById('map-status').hidden) return;
+    const isChina = appState.currentLevel === 'china';
+    const mapName = isChina ? 'china' : provinceFullNames[appState.currentLevel];
+    const title = isChina ? '全国足迹地图' : `${mapName}足迹地图`;
+    chart.setOption(createMapOption(mapName, title, isChina), true);
 }
 
-// 加载省份地图 - 修改为从本地map文件夹读取
-function loadProvinceMap(provinceName) {
-    // 统一处理省份名称
-    let shortName = provinceName;
-    
-    // 如果传入的是"台湾省"，转换为"台湾"
-    if (provinceName === '台湾省') {
-        shortName = '台湾';
-    }
-    
-    const code = provinceCodeMap[shortName];
-    if (!code) {
-        alert(`未找到 ${provinceName} 的行政区划代码`);
-        return;
+function setupTouchGestures(mapElement) {
+    let gesture = null;
+
+    function measure(touches) {
+        const first = touches[0];
+        const second = touches[1];
+        return {
+            x: (first.clientX + second.clientX) / 2,
+            y: (first.clientY + second.clientY) / 2,
+            distance: Math.hypot(first.clientX - second.clientX, first.clientY - second.clientY)
+        };
     }
 
-    // 从本地map文件夹读取省份JSON文件
-    const url = `./map/${code}_full.json`;
+    mapElement.addEventListener('touchstart', event => {
+        if (event.touches.length < 2) return;
+        gesture = measure(event.touches);
+        event.preventDefault();
+        event.stopPropagation();
+    }, { capture: true, passive: false });
 
-    fetch(url)
-        .then(response => {
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            return response.json();
-        })
-        .then(geoJSON => {
-            // 使用映射表获取省份全称
-            const fullName = provinceFullNames[shortName] || provinceName;
-
-            try { 
-                echarts.registerMap(fullName, geoJSON); 
-            } catch (e) { 
-                console.warn('注册地图失败', e); 
-            }
-
-            appState.currentProvinceShort = shortName;
-            appState.currentProvinceFull = fullName;
-
-            if (!appState.data[shortName]) appState.data[shortName] = {};
-            showProvinceMap(shortName, fullName);
-        })
-        .catch(err => {
-            console.error('加载省级地图失败：', err);
-            alert(`加载 ${provinceName} 地图失败，请检查map文件夹中是否有${code}_full.json文件`);
+    mapElement.addEventListener('touchmove', event => {
+        if (!gesture || event.touches.length < 2) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const next = measure(event.touches);
+        const rect = mapElement.getBoundingClientRect();
+        chart.dispatchAction({
+            type: 'geoRoam',
+            seriesIndex: 0,
+            dx: next.x - gesture.x,
+            dy: next.y - gesture.y,
+            zoom: gesture.distance > 0 ? next.distance / gesture.distance : 1,
+            originX: next.x - rect.left,
+            originY: next.y - rect.top
         });
+        gesture = next;
+    }, { capture: true, passive: false });
+
+    function endGesture(event) {
+        if (!gesture) return;
+        event.preventDefault();
+        if (event.touches.length) event.stopPropagation();
+        if (event.touches.length < 2) {
+            gesture = null;
+            ignoreMapClickUntil = Date.now() + 400;
+        }
+    }
+    mapElement.addEventListener('touchend', endGesture, { capture: true, passive: false });
+    mapElement.addEventListener('touchcancel', endGesture, { capture: true, passive: false });
 }
 
-// 显示省份地图
-function showProvinceMap(shortName, fullName) {
-    fullName = fullName || appState.currentProvinceFull || shortName;
-    shortName = shortName || appState.currentProvinceShort || 
-                fullName.replace(/(省|市|自治区|特别行政区|壮族自治区|回族自治区|维吾尔自治区)$/, '');
-
-    if (!appState.data[shortName]) appState.data[shortName] = {};
-
-    appState.currentLevel = shortName;
-    appState.currentProvince = shortName;
-
-    const center = provinceCenters[shortName] || [105, 38];
-
-    // 使用省份全称作为标题
-    const provinceDisplayName = provinceFullNames[shortName] || shortName + '省';
-
-    const option = {
-        title: {
-            text: `${provinceDisplayName} - 点击城市选择等级`,
-            left: 'center',
-            textStyle: { fontSize: 18 }
-        },
-        tooltip: {
-            trigger: 'item',
-            formatter: function(params) {
-                const level = (appState.data[shortName] && appState.data[shortName][params.name]) || 0;
-                return `${params.name}<br/>${appState.levelNames[level]}`;
-            }
-        },
-        visualMap: createVisualMap(),
-        series: [{
-            name: fullName,
-            type: 'map',
-            map: fullName,
-            roam: true,
-            selectedMode: false,
-            select: { disabled: true },
-            center: null,
-            zoom: 1,
-            label: { show: true },
-            emphasis: {
-                label: { show: true },
-                itemStyle: { areaColor: HOVER_COLOR }
-            },
-            data: (Object.keys(appState.data[shortName] || {})).map(name => {
-                const level = appState.data[shortName][name] || 0;
-                const color = getColor(level);
-                return { name, value: level, itemStyle: { areaColor: color, color } };
-            })
-        }]
-    };
-
-    chart.setOption(option, true);
-    document.getElementById('back-btn').style.display = 'block';
-    
-    chart.off('click');
-    chart.on('click', handleMapClick);
-    updateLevelDisplay();
-}
-
-// 返回全国地图
-function backToChina() {
-    appState.currentLevel = 'china';
-    appState.currentProvince = null;
-    initChinaMap();
-    document.getElementById('back-btn').style.display = 'none';
-}
-
-// 保存图片
 function saveImage() {
-    if (!chart) {
-        alert('地图未加载，无法保存');
-        return;
-    }
-    
-    const imageData = chart.getDataURL({
-        type: 'png',
-        pixelRatio: 2,
-        backgroundColor: '#fff'
-    });
-    
+    const dataURL = imageDataURL();
+    if (!dataURL) return;
     const link = document.createElement('a');
-    link.download = '制县等级地图.png';
-    link.href = imageData;
+    link.download = '中国足迹地图.png';
+    link.href = dataURL;
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
+    link.remove();
 }
 
-// 初始化应用
-document.addEventListener('DOMContentLoaded', function() {
-    chart = echarts.init(document.getElementById('map'));
-    
-    loadChinaMap();
-    
-    document.getElementById('back-btn').addEventListener('click', backToChina);
-    document.getElementById('save-btn').addEventListener('click', saveImage);
-    document.getElementById('share-btn').addEventListener('click', function() {
-        alert('分享功能开发中');
+function shareImage() {
+    const dataURL = imageDataURL();
+    if (!dataURL) return;
+    try {
+        const bytes = atob(dataURL.split(',')[1]);
+        const array = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i++) array[i] = bytes.charCodeAt(i);
+        const file = new File([array], '中国足迹地图.png', { type: 'image/png' });
+        const shareData = { title: '我的中国足迹地图', files: [file] };
+        if (!navigator.share || !navigator.canShare || !navigator.canShare(shareData)) {
+            showToast('当前浏览器不支持直接分享图片，请先保存图片再分享。');
+            return;
+        }
+        navigator.share(shareData).catch(error => {
+            if (error.name !== 'AbortError') showToast('分享未完成，请先保存图片再分享。');
+        });
+    } catch (error) {
+        console.warn('分享图片失败:', error);
+        showToast('当前浏览器不支持直接分享图片，请先保存图片再分享。');
+    }
+}
+
+function handleModalKeydown(event) {
+    if (document.getElementById('level-overlay').hidden) return;
+    if (event.key === 'Escape') {
+        hideLevelMenu();
+        return;
+    }
+    if (event.key !== 'Tab') return;
+    const buttons = [...document.querySelectorAll('#level-menu button')];
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement.id === 'level-menu')) {
+        event.preventDefault();
+        last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('close-menu-btn').addEventListener('click', hideLevelMenu);
+    document.getElementById('level-overlay').addEventListener('click', event => {
+        if (event.target.id === 'level-overlay') hideLevelMenu();
     });
-    
-    window.addEventListener('resize', function() {
-        if (chart) chart.resize();
+    document.addEventListener('keydown', handleModalKeydown);
+    document.querySelectorAll('.level-option').forEach(option => {
+        option.addEventListener('click', () => updateRegionLevel(Number(option.dataset.level)));
+    });
+    document.getElementById('region-select').addEventListener('change', event => {
+        const name = event.target.value;
+        event.target.value = '';
+        selectRegion(name);
+    });
+    document.getElementById('back-btn').addEventListener('click', () => {
+        ++mapRequest;
+        hideMapStatus();
+        showChinaMap(mapCache.get('./map/china_full.json'));
+    });
+    document.getElementById('save-btn').addEventListener('click', saveImage);
+    document.getElementById('share-btn').addEventListener('click', shareImage);
+    document.getElementById('zoom-in-btn').addEventListener('click', () => changeMapZoom(1.4));
+    document.getElementById('zoom-out-btn').addEventListener('click', () => changeMapZoom(1 / 1.4));
+    document.getElementById('reset-map-btn').addEventListener('click', resetMapView);
+    document.getElementById('retry-btn').addEventListener('click', () => {
+        if (!window.echarts) location.reload();
+        else loadChinaMap();
+    });
+
+    updateLevelDisplay();
+    if (!window.echarts) {
+        showMapStatus('地图组件加载失败，请检查网络后重新加载页面。', true);
+        return;
+    }
+    const mapElement = document.getElementById('map');
+    chart = echarts.init(mapElement);
+    setupTouchGestures(mapElement);
+    chart.on('click', params => {
+        if (Date.now() >= ignoreMapClickUntil && params.componentType === 'series' && params.seriesType === 'map') selectRegion(params.name);
+    });
+    loadChinaMap();
+
+    window.addEventListener('resize', () => {
+        cancelAnimationFrame(resizeFrame);
+        resizeFrame = requestAnimationFrame(() => {
+            chart.resize();
+            chart.setOption({
+                title: { textStyle: { fontSize: isCompact() ? 13 : 15 } },
+                series: [{ label: { fontSize: isCompact() ? 9 : 11 } }]
+            });
+        });
     });
 });
