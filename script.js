@@ -39,6 +39,7 @@ let previousFocus = null;
 let toastTimer = null;
 let resizeFrame = null;
 let ignoreMapClickUntil = 0;
+let pendingClear = null;
 
 function loadRecords() {
     const records = Object.create(null);
@@ -67,9 +68,11 @@ function loadRecords() {
 function saveRecords() {
     try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(appState.data));
+        return true;
     } catch (error) {
         console.warn('保存本地足迹记录失败:', error);
         showToast('无法保存到浏览器，刷新页面后记录可能丢失。');
+        return false;
     }
 }
 
@@ -88,6 +91,16 @@ function updateLevelDisplay() {
         : getProvinceTotal(appState.currentLevel);
     document.getElementById('score-label').textContent = isChina ? '全国总分' : `${appState.currentLevel}总分`;
     document.getElementById('level-display').textContent = total;
+    updateClearButton();
+}
+
+function updateClearButton() {
+    const button = document.getElementById('clear-btn');
+    const isChina = appState.currentLevel === 'china';
+    button.textContent = isChina ? '清空全部' : `清空${appState.currentLevel}`;
+    button.setAttribute('aria-label', isChina ? '清空全部足迹记录' : `清空${appState.currentLevel}的足迹记录`);
+    const hasRecords = isChina ? Object.keys(appState.data).length > 0 : getProvinceTotal(appState.currentLevel) > 0;
+    button.disabled = !hasRecords || !document.getElementById('map-status').hidden;
 }
 
 function showToast(message) {
@@ -104,10 +117,12 @@ function showMapStatus(message, isError = false) {
     status.querySelector('.loading-indicator').hidden = isError;
     document.getElementById('retry-btn').hidden = !isError;
     status.hidden = false;
+    updateClearButton();
 }
 
 function hideMapStatus() {
     document.getElementById('map-status').hidden = true;
+    updateClearButton();
 }
 
 async function fetchMap(url) {
@@ -290,6 +305,7 @@ function hideLevelMenu() {
 function updateRegionLevel(level) {
     if (!appState.currentSelectedRegion || !Number.isInteger(level) || level < 0 || level > 4) return;
     const { name, province } = appState.currentSelectedRegion;
+    if (pendingClear) pendingClear.edited.add(`${province}\u0000${name}`);
     if (level === 0) {
         if (appState.data[province]) {
             delete appState.data[province][name];
@@ -303,6 +319,41 @@ function updateRegionLevel(level) {
     updateLevelDisplay();
     hideLevelMenu();
     saveRecords();
+}
+
+function clearCurrentRecords() {
+    const province = appState.currentLevel;
+    const isChina = province === 'china';
+    if (isChina ? !Object.keys(appState.data).length : !appState.data[province]) return;
+
+    const records = isChina ? appState.data : { [province]: appState.data[province] };
+    pendingClear = { records, edited: new Set() };
+    if (isChina) appState.data = Object.create(null);
+    else delete appState.data[province];
+
+    chart.setOption({ series: [{ data: mapData() }] });
+    updateLevelDisplay();
+    saveRecords();
+    document.getElementById('clear-message').textContent = isChina ? '已清空全国足迹' : `已清空${province}足迹`;
+    const feedback = document.getElementById('clear-feedback');
+    feedback.hidden = false;
+    feedback.scrollIntoView({ block: 'nearest' });
+}
+
+function undoClear() {
+    if (!pendingClear) return;
+    for (const [province, cities] of Object.entries(pendingClear.records)) {
+        for (const [city, level] of Object.entries(cities)) {
+            if (pendingClear.edited.has(`${province}\u0000${city}`)) continue;
+            if (!appState.data[province]) appState.data[province] = Object.create(null);
+            appState.data[province][city] = level;
+        }
+    }
+    pendingClear = null;
+    document.getElementById('clear-feedback').hidden = true;
+    chart.setOption({ series: [{ data: mapData() }] });
+    updateLevelDisplay();
+    if (saveRecords()) showToast('已撤销清空');
 }
 
 function imageDataURL() {
@@ -346,6 +397,10 @@ function setupTouchGestures(mapElement) {
     }
 
     mapElement.addEventListener('touchstart', event => {
+        if (event.touches.length === 1 && !gesture) {
+            ignoreMapClickUntil = 0;
+            return;
+        }
         if (event.touches.length < 2) return;
         gesture = measure(event.touches);
         event.preventDefault();
@@ -381,6 +436,12 @@ function setupTouchGestures(mapElement) {
     }
     mapElement.addEventListener('touchend', endGesture, { capture: true, passive: false });
     mapElement.addEventListener('touchcancel', endGesture, { capture: true, passive: false });
+
+    // Some browsers emit a mouse click after ECharts has already opened the menu on touchend.
+    // Cancel that compatibility click so it cannot hit the new overlay or one of its buttons.
+    mapElement.addEventListener('touchend', event => {
+        if (!document.getElementById('level-overlay').hidden) event.preventDefault();
+    }, { passive: false });
 }
 
 function saveImage() {
@@ -456,6 +517,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('save-btn').addEventListener('click', saveImage);
     document.getElementById('share-btn').addEventListener('click', shareImage);
+    document.getElementById('clear-btn').addEventListener('click', clearCurrentRecords);
+    document.getElementById('undo-clear-btn').addEventListener('click', undoClear);
     document.getElementById('zoom-in-btn').addEventListener('click', () => changeMapZoom(1.4));
     document.getElementById('zoom-out-btn').addEventListener('click', () => changeMapZoom(1 / 1.4));
     document.getElementById('reset-map-btn').addEventListener('click', resetMapView);
